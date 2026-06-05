@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import {
-    Alert,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import Board from '../components/Board';
@@ -18,6 +18,8 @@ export default function BotScreen() {
 
   const [games, setGames] = useState(1);
   const [gameOver, setGameOver] = useState(false);
+
+  const [mode, setMode] = useState('easy');
 
   const winnerLines = [
     [0,1,2],
@@ -45,25 +47,16 @@ export default function BotScreen() {
       let winner = '';
 
       if (scorePlayer > scoreBot) {
-        winner = ' Ganaste la serie';
-      }
-      else if (scoreBot > scorePlayer) {
-        winner = ' La máquina ganó la serie';
-      }
-      else {
-        winner = ' La serie terminó empatada';
+        winner = 'Ganaste la serie';
+      } else if (scoreBot > scorePlayer) {
+        winner = 'La máquina ganó la serie';
+      } else {
+        winner = 'La serie terminó empatada';
       }
 
-      Alert.alert(
-        'Fin de las 5 partidas',
-        winner,
-        [
-          {
-            text: 'Nueva Serie',
-            onPress: restartGame
-          }
-        ]
-      );
+      Alert.alert('Fin de las 5 partidas', winner, [
+        { text: 'Nueva Serie', onPress: restartGame }
+      ]);
 
       return;
     }
@@ -73,7 +66,7 @@ export default function BotScreen() {
     setGames(prev => prev + 1);
   }
 
-  function checkWinner(currentBoard:string[]) {
+  function checkWinner(currentBoard) {
 
     for (let line of winnerLines) {
 
@@ -88,22 +81,13 @@ export default function BotScreen() {
         setGameOver(true);
 
         if (currentBoard[a] === 'X') {
-
           setScorePlayer(prev => prev + 1);
 
-          Alert.alert(
-            ' Ganaste',
-            'Le ganaste a la máquina'
-          );
-
+          Alert.alert('Ganaste', 'Le ganaste a la máquina');
         } else {
-
           setScoreBot(prev => prev + 1);
 
-          Alert.alert(
-            ' Perdiste',
-            'La máquina ganó esta partida'
-          );
+          Alert.alert('Perdiste', 'La máquina ganó esta partida');
         }
 
         setTimeout(() => {
@@ -121,10 +105,7 @@ export default function BotScreen() {
       setScorePlayer(prev => prev + 1);
       setScoreBot(prev => prev + 1);
 
-      Alert.alert(
-        'Empate',
-        '1 punto para cada uno'
-      );
+      Alert.alert('Empate', '1 punto para cada uno');
 
       setTimeout(() => {
         nextRound();
@@ -136,14 +117,50 @@ export default function BotScreen() {
     return false;
   }
 
-  function botMove(boardAfterPlayer:string[]) {
+  function smartMove(board, empty) {
+
+    for (let i of empty) {
+      const copy = [...board];
+      copy[i] = 'O';
+      if (checkWinSim(copy, 'O')) return i;
+    }
+
+    for (let i of empty) {
+      const copy = [...board];
+      copy[i] = 'X';
+      if (checkWinSim(copy, 'X')) return i;
+    }
+
+    if (empty.includes(4)) return 4;
+
+    return empty[Math.floor(Math.random() * empty.length)];
+  }
+
+  function checkWinSim(board, player) {
+
+    for (let line of winnerLines) {
+
+      const [a,b,c] = line;
+
+      if (
+        board[a] === player &&
+        board[b] === player &&
+        board[c] === player
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function botMove(boardAfterPlayer) {
 
     if (gameOver) return;
 
     const available = [];
 
     for (let i = 0; i < boardAfterPlayer.length; i++) {
-
       if (boardAfterPlayer[i] === '') {
         available.push(i);
       }
@@ -151,32 +168,42 @@ export default function BotScreen() {
 
     if (available.length === 0) return;
 
-    const randomIndex =
-      available[Math.floor(Math.random() * available.length)];
+    let move;
+
+    if (mode === 'easy') {
+      move = available[Math.floor(Math.random() * available.length)];
+    }
+
+    else if (mode === 'medium') {
+      if (Math.random() < 0.6) {
+        move = available[Math.floor(Math.random() * available.length)];
+      } else {
+        move = smartMove(boardAfterPlayer, available);
+      }
+    }
+
+    else {
+      move = smartMove(boardAfterPlayer, available);
+    }
 
     const botBoard = [...boardAfterPlayer];
-
-    botBoard[randomIndex] = 'O';
+    botBoard[move] = 'O';
 
     setBoard(botBoard);
-
     checkWinner(botBoard);
   }
 
   function handlePress(index) {
 
     if (gameOver) return;
-
     if (board[index] !== '') return;
 
     const newBoard = [...board];
-
     newBoard[index] = 'X';
 
     setBoard(newBoard);
 
     const winnerFound = checkWinner(newBoard);
-
     if (winnerFound) return;
 
     setTimeout(() => {
@@ -185,83 +212,91 @@ export default function BotScreen() {
   }
 
   return (
-
     <View style={styles.container}>
 
-      <Text style={styles.title}>
-        Contra Bot 
-      </Text>
+      <Text style={styles.title}>Contra Bot</Text>
 
-      <Text style={styles.score}>
-        Partida {games} de 5
-      </Text>
+      <Text style={styles.score}>Partida {games} de 5</Text>
 
-      <Text style={styles.score}>
-        Tú (X): {scorePlayer}
-      </Text>
+      <Text style={styles.score}>Tú (X): {scorePlayer}</Text>
 
-      <Text style={styles.score}>
-        Máquina (O): {scoreBot}
-      </Text>
+      <Text style={styles.score}>Máquina (O): {scoreBot}</Text>
 
-<View style={styles.boardContainer}>
-  <Board
-    board={board}
-    onPress={handlePress}
-  />
-</View>
+      <View style={styles.modeContainer}>
+        <TouchableOpacity onPress={() => setMode('easy')}>
+          <Text style={styles.mode}>Fácil</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={restartGame}
-      >
-        <Text style={styles.buttonText}>
-          Reiniciar Juego
-        </Text>
+        <TouchableOpacity onPress={() => setMode('medium')}>
+          <Text style={styles.mode}>Medio</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => setMode('hard')}>
+          <Text style={styles.mode}>Difícil</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.boardContainer}>
+        <Board board={board} onPress={handlePress} />
+      </View>
+
+      <TouchableOpacity style={styles.button} onPress={restartGame}>
+        <Text style={styles.buttonText}>Reiniciar Juego</Text>
       </TouchableOpacity>
 
     </View>
-
   );
 }
 
 const styles = StyleSheet.create({
 
-  container:{
-    flex:1,
-    backgroundColor:'#121212',
-    justifyContent:'center',
-    alignItems:'center'
+  container: {
+    flex: 1,
+    backgroundColor: '#121212',
+    justifyContent: 'center',
+    alignItems: 'center'
   },
 
-  boardContainer:{
-  marginTop:20,
-  alignItems:'center'
-},
-
-  title:{
-    color:'#fff',
-    fontSize:30,
-    fontWeight:'bold',
-    marginBottom:15
+  boardContainer: {
+    marginTop: 20,
+    alignItems: 'center'
   },
 
-  score:{
-    color:'#fff',
-    fontSize:18,
-    marginBottom:5
+  title: {
+    color: '#fff',
+    fontSize: 30,
+    fontWeight: 'bold',
+    marginBottom: 15
   },
 
-  button:{
-    backgroundColor:'#E50914',
-    padding:15,
-    borderRadius:10,
-    marginTop:25
+  score: {
+    color: '#fff',
+    fontSize: 18,
+    marginBottom: 5
   },
 
-  buttonText:{
-    color:'#fff',
-    fontWeight:'bold'
+  button: {
+    backgroundColor: '#E50914',
+    padding: 15,
+    borderRadius: 10,
+    marginTop: 25
+  },
+
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold'
+  },
+
+  modeContainer: {
+    flexDirection: 'row',
+    marginTop: 10,
+    marginBottom: 10,
+    gap: 10
+  },
+
+  mode: {
+    color: '#fff',
+    marginHorizontal: 10
   }
-
 });
+
